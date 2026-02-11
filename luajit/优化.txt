@@ -1,0 +1,4 @@
+经过测试 luajit里面JIT_PARAMDEF 
+maxrecord,	默认值：4000 改成 400000
+maxirconst,	默认值：500  改成 400
+改后在机器人压测td副本的情况下，性能会比默认值有10左右的提示 

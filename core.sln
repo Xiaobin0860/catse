@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "logic", "logic\logic.vcproj", "{D5C00D61-39DA-4B98-8156-64121B7F8EFB}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "merge", "merge\merge.vcproj", "{AAEC9C54-CB4A-465E-B672-2D32BAAB4D03}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D5C00D61-39DA-4B98-8156-64121B7F8EFB}.Debug|Win32.ActiveCfg = Debug|Win32
+		{D5C00D61-39DA-4B98-8156-64121B7F8EFB}.Debug|Win32.Build.0 = Debug|Win32
+		{D5C00D61-39DA-4B98-8156-64121B7F8EFB}.Release|Win32.ActiveCfg = Release|Win32
+		{D5C00D61-39DA-4B98-8156-64121B7F8EFB}.Release|Win32.Build.0 = Release|Win32
+		{AAEC9C54-CB4A-465E-B672-2D32BAAB4D03}.Debug|Win32.ActiveCfg = Debug|Win32
+		{AAEC9C54-CB4A-465E-B672-2D32BAAB4D03}.Debug|Win32.Build.0 = Debug|Win32
+		{AAEC9C54-CB4A-465E-B672-2D32BAAB4D03}.Release|Win32.ActiveCfg = Release|Win32
+		{AAEC9C54-CB4A-465E-B672-2D32BAAB4D03}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
