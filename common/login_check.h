@@ -5,11 +5,11 @@
 #include<stdlib.h>
 #include <iostream>
 
-#define CHECKIPSTR "159.75.201.79" //IPµØÖ·;
-#define CHECKPORT 81 //¶Ë¿Ú;
+#define CHECKIPSTR "159.75.201.79" //IPåœ°å€;
+#define CHECKPORT 81 //ç«¯å£;
 #define IP_PORT "159.75.201.79:81"
 #define BUFSIZE 1024
-#define CHECKSLEEPTIME 10000   // ¶àÉÙÃëºó¼ì³µÊÇ·ñºÏ·¨  1000 Îª1s
+#define CHECKSLEEPTIME 10000   // å¤šå°‘ç§’åŽæ£€è½¦æ˜¯å¦åˆæ³•  1000 ä¸º1s
  
 
 struct login_check{
@@ -33,10 +33,10 @@ struct login_check{
 	 
 		int errNo = connect(clientSocket, (sockaddr*)&ServerAddr, sizeof(ServerAddr));
 		if (errNo == 0) {
-			errNo = send(clientSocket, httpHeader, strlen(httpHeader), 0);//·¢ËÍÍ·ÎÄ¼þ
+			errNo = send(clientSocket, httpHeader, strlen(httpHeader), 0);//å‘é€å¤´æ–‡ä»¶.
 			if (errNo > 0)  {
 			//	puts("send  success ... ");
-				// ½ÓÊÕ
+				// æŽ¥æ”¶.
 				char bufRecv[3069] = { 0 };
 				errNo = recv(clientSocket, bufRecv, 3069, 0);
 				if (errNo > 0) {

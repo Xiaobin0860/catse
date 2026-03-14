@@ -1,8 +1,8 @@
-/*热更新线程 检查main_file_name文件是否修改 如果修改 则需要热更新*/
+/*热更新线程 检查main_file_name文件是否修改 如果修改 则需要热更新.*/
 #pragma once
 
 struct thread_hot{   
-	long long time_modify;	// 文件修改时间
+	long long time_modify;	// 文件修改时间.
 	thread_hot()
 	{
 		time_modify = 0;

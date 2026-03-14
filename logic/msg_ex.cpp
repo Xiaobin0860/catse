@@ -76,7 +76,7 @@ int msg_ex::broadcast(lua_State *pl){
 	int ret = parser.write_msg_dfs(msg, proto_id, pl);
 	if(ret)
 	{
-		//Ê§°Ü£¬ĞèÒªÊÍ·Åmsg
+		//å¤±è´¥ï¼Œéœ€è¦é‡Šæ”¾msg
 		global::ref.msg_send_pool.free(msg);
 		luaL_error(pl, "broadcast:protoid=%d, ret=%d\n", proto_id, ret);
 	}
@@ -128,7 +128,7 @@ int msg_ex::multicast(lua_State *pl){
 	int ret = parser.write_msg_dfs(msg, proto_id, pl);
 	if(ret)
 	{
-		//Ê§°Ü£¬ĞèÒªÊÍ·Åmsg
+		//å¤±è´¥ï¼Œéœ€è¦é‡Šæ”¾msg
 		global::ref.msg_send_pool.free(msg);
 		luaL_error(pl, "multicast:protoid=%d, ret=%d\n", proto_id, ret);
 	}
@@ -163,7 +163,7 @@ int msg_ex::unicast(lua_State *pl){
 	int ret = parser.write_msg_dfs(msg, proto_id, pl);
 	if(ret)
 	{
-		//Ê§°Ü£¬ĞèÒªÊÍ·Åmsg
+		//å¤±è´¥ï¼Œéœ€è¦é‡Šæ”¾msg
 		global::ref.msg_send_pool.free(msg);
 		luaL_error(pl, "unicast:protoid=%d ->%s ret=%d\n", proto_id, parser.err_name, ret);
 	}

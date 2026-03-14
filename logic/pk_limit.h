@@ -11,10 +11,10 @@ struct pk_limit
 	};
 	static const int fd_max = 16384;
 	static const int id_max = 3072; //以CG_开头的包最大ID
-	char cnt[id_max];   //一个间隔之内最多为多少次
-	short second[id_max];//多少毫秒为一个间隔
-	char last_cnt[fd_max][id_max];    //记录该fd该协议号次数
-	long long last_time[fd_max][id_max];   //记录该fd该协议号上一次的时间
+	char cnt[id_max];   //一个间隔之内最多为多少次.
+	short second[id_max];//多少毫秒为一个间隔.
+	char last_cnt[fd_max][id_max];    //记录该fd该协议号次数.
+	long long last_time[fd_max][id_max];   //记录该fd该协议号上一次的时间.
 	char name[id_max][64];
 	int check_pk_limit(long long cur_time, int fd, int id){
 		if (!(0<=fd&&fd<fd_max)){

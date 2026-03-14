@@ -1,4 +1,4 @@
-/*world 和logic通信线程*/
+/*world 和logic通信线程.*/
 #pragma once
 
 struct thread_inner{
@@ -11,19 +11,19 @@ struct thread_inner{
 	static const int PACKET_ID_HEARTBEAT = 3;
 	static const int PACKET_ID_DISCONNECT_WL = 4;
 
-	bool isMiddle;	// 是否跨服
+	bool isMiddle;	// 是否跨服.
 
-	// 跨服需要的变量
+	// 跨服需要的变量.
 	int fds_len;
 	short fds[fd_max];
 	struct bufferevent *fd2be[fd_max];
 
-	// 正常服逻辑需要的变量
+	// 正常服逻辑需要的变量.
 	bufferevent *beNormal; 
 	bool needConnect;
 	bool forceClose;
-	char connect_state;     // 0：无连接  1：连接中 2：已接上
-	sockaddr_in si;			// 连接地址
+	char connect_state;     // 0：无连接  1：连接中 2：已接上.
+	sockaddr_in si;			// 连接地址.
 	char ip[64];
 	char ip_len;
 	bool setIp;
@@ -31,15 +31,15 @@ struct thread_inner{
 
 	void cb_event(bufferevent *be, short nEvents) {
 		if (isMiddle) {
-			// 正常服到跨服的连接断开 关闭连接
+			// 正常服到跨服的连接断开 关闭连接.
 			close_connect(be);
 		}else {
 			if(nEvents & BEV_EVENT_CONNECTED){
 				// 链接跨服成功 发送hello
-				connect_state =  2; // 連上了
+				connect_state =  2; // 連上了.
 				sendHelloPacketToWorld();
 			} else {
-				// 其他情况断开连接
+				// 其他情况断开连接.
 				if(beNormal && connect_state == 2) close_connect(beNormal);
 				else bufferevent_free(beNormal);
 				beNormal = 0;
@@ -49,7 +49,7 @@ struct thread_inner{
 	}
 
 	void cb_listener(int fd){
-		// 新连接接入
+		// 新连接接入.
 		bufferevent *be = bufferevent_socket_new(eb, fd, BEV_OPT_CLOSE_ON_FREE);
 		if(!be){
 			assert(0);
@@ -61,7 +61,7 @@ struct thread_inner{
 
 		bufferevent_setwatermark(be, EV_READ, sizeof(int), 0);
 		timeval tv = {300, 0}; 
-		bufferevent_set_timeouts(be, &tv, 0); // 300秒无数据就主动断开连接
+		bufferevent_set_timeouts(be, &tv, 0); // 300秒无数据就主动断开连接.
 		bufferevent_setcb(be, static_cb_read, 0, static_cb_event, this);
 		bufferevent_enable(be, EV_READ);
 	}
@@ -185,10 +185,10 @@ struct thread_inner{
 			assert(0);
 			return;
 		}
-		connect_state = 1; // 連接中
+		connect_state = 1; // 連接中.
 	}
 
-	// 断开连接
+	// 断开连接.
 	void dis_connect(){
 		if (beNormal == 0) return;
 
@@ -200,7 +200,7 @@ struct thread_inner{
 		connect_state = 0;
 	}
 
-	// 设置连接
+	// 设置连接.
 	void set_connect(lua_State *pl){
 		size_t str_len = 0;
 		const char *str = luaL_checklstring(pl, 1, &str_len);
@@ -280,7 +280,7 @@ struct thread_inner{
 		needConnect = false;
 		forceClose = false;
 
-		// eventBase初始化
+		// eventBase初始化.
 		eb = event_base_new();
 		if(!eb){
 			assert(0);
@@ -295,7 +295,7 @@ struct thread_inner{
 			return;
 		}
 
-		// 正常服启动相关配置初始化
+		// 正常服启动相关配置初始化.
 		if(!reader->read_int("SVR_INDEX", &svr_index)){
 			assert(0);
 			exit(0);
@@ -328,7 +328,7 @@ struct thread_inner{
 				exit(0);
 				return;
 			}
-			//跨服相关逻辑
+			//跨服相关逻辑.
 			evconnlistener *listener = evconnlistener_new_bind(eb, static_cb_listener, this, LEV_OPT_REUSEABLE, -1, (sockaddr*)&sin, sizeof(sin));
 			if(!listener){
 				puts("err evconnlistener_new_bind");

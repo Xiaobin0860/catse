@@ -1,4 +1,4 @@
-/*写日志文件的线程*/
+/*写日志文件的线程.*/
 #pragma once
 #include "common.h"
 #include"msg_queue.h"
@@ -16,10 +16,10 @@ struct log_info{
 	char	filename[128];
 	int		filename_len;
 	bool	has_data;
-	int		div_time; //间隔
-	bool    is_json;  //是否json json则不加mtime mdate头
+	int		div_time; //间隔.
+	bool    is_json;  //是否json json则不加mtime mdate头.
 	int		last_time_div;
-	char	head[512]; //列名
+	char	head[512]; //列名.
 
 	void set_head(const char *head, const int headLen){
 		if(sizeof(this->head) < headLen){
@@ -143,7 +143,7 @@ struct thread_log{
 	}
 	
 
-	// 注册日志文件
+	// 注册日志文件.
 	int reg(const char *filename, const char *head, int divTime, bool isJson){
 		if(sizeof(li)/sizeof(*li) <= li_len){
 			assert(0);
@@ -155,7 +155,7 @@ struct thread_log{
 			return 0;
 		}
 		for(int i = 0; i < li_len; ++i){
-			// 判断日志文件是否已经被注册过
+			// 判断日志文件是否已经被注册过.
 			if(!memcmp(filename, li[i].filename, filename_len)){
 				return i;
 			}
@@ -192,7 +192,7 @@ struct thread_log{
 		return 1;
 	}
 
-	// 写日志逻辑
+	// 写日志逻辑.
 	void do_queue(message_queue<log_node>& q){
 		while(q.getfront()){
 			log_node *plog = q.getfront();
@@ -207,7 +207,7 @@ struct thread_log{
 	void run(){
 		for(unsigned step = 0; ; ++step){
 			sleep1;
-			// linux下面如果文件用别的工具修改后 存在无法继续写入的问题，所以热更新的时候 重新打开一下日志文件
+			// linux下面如果文件用别的工具修改后 存在无法继续写入的问题，所以热更新的时候 重新打开一下日志文件.
 			if (need_hot_log){
 				for(int i = 0; i < li_len; ++i){
 					if(li[i].file){
@@ -226,7 +226,7 @@ struct thread_log{
 				continue;
 			}
 
-			//每秒flush一次所有日志文件
+			//每秒flush一次所有日志文件.
 			for(int i = 0; i < li_len; ++i){
 				li[i].flush();
 			}
@@ -342,7 +342,7 @@ struct thread_log{
 	int write(lua_State* pl){
 		log_node *plog = q_list.getback();
 		if(!plog){
-			// 如果日志缓存队列爆了 立刻写入urgent文件中
+			// 如果日志缓存队列爆了 立刻写入urgent文件中.
 			int logid = (int)luaL_checknumber(pl, 1);
 			char buf[8192] = {0};
 			int buf_len = table_concat(buf, sizeof(buf) - 1, true, 2, pl);
@@ -408,12 +408,12 @@ public:
 		global::ref.reg_tb_func(pl, l, "lua_log");		
 	}
 
-	// lua接口：日志文件注册
+	// lua接口：日志文件注册.
 	static int static_reg(lua_State* pl){		
 		return ref.reg(pl);
 	}
 
-	// lua接口：写日志文件
+	// lua接口：写日志文件.
 	static int static_write(lua_State* pl){
 		return ref.write(pl);
 	}

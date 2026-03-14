@@ -1,4 +1,4 @@
-/*管理后台的连接io处理线程*/
+/*管理后台的连接io处理线程.*/
 #pragma once
 
 struct thread_admin{
@@ -13,7 +13,7 @@ struct thread_admin{
 		close_connect(be);
 	}
 	void cb_listener(int fd){
-		// 新连接接入
+		// 新连接接入.
 		bufferevent *be = bufferevent_socket_new(eb, fd, BEV_OPT_CLOSE_ON_FREE);
 		if(!be){
 			assert(0);
@@ -25,7 +25,7 @@ struct thread_admin{
 
 		bufferevent_setwatermark(be, EV_READ, sizeof(int), 0);
 		timeval tv = {300, 0}; 
-		bufferevent_set_timeouts(be, &tv, 0); // 300秒无数据就主动断开连接
+		bufferevent_set_timeouts(be, &tv, 0); // 300秒无数据就主动断开连接.
 		bufferevent_setcb(be, static_cb_read, 0, static_cb_event, this);
 		bufferevent_enable(be, EV_READ);
 	}

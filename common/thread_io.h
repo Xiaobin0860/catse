@@ -24,7 +24,7 @@ struct thread_io{
 	void cb_event(bufferevent *be, short nEvents){
 		close_connect(be, nEvents & BEV_EVENT_TIMEOUT ? DISCONNECT_REASON_TIMEOUT : DISCONNECT_REASON_CLIENT,nEvents);
 	}
-	void cb_listener(int fd){// 新连接接入
+	void cb_listener(int fd){// 新连接接入.
 		bufferevent *be = bufferevent_socket_new(eb, fd, BEV_OPT_CLOSE_ON_FREE);
 		if(!be){
 			assert(0);
@@ -38,7 +38,7 @@ struct thread_io{
 		fd2websocket[fd] =0 ;
 		bufferevent_setwatermark(be, EV_READ, sizeof(msg_head), 0);
 		timeval tv = {300, 0}; 
-		bufferevent_set_timeouts(be, &tv, 0); // 300秒无数据就主动断开连接
+		bufferevent_set_timeouts(be, &tv, 0); // 300秒无数据就主动断开连接.
 		bufferevent_setcb(be, static_cb_read, 0, static_cb_event, this);
 		bufferevent_enable(be, EV_READ);	
 		int on = 1;
@@ -66,7 +66,7 @@ struct thread_io{
 			return;
 		}
 
-		/* 腾讯以前服务器需要加这个才能访问
+		/* 腾讯以前服务器需要加这个才能访问.
 		if(!fd2comeon[fd]){
 			static const char pre[] = "\r\nhost:";
 			if(sizeof(pre) < evbuffer_get_length(in)){
@@ -109,7 +109,7 @@ struct thread_io{
 			} else if (packet_length == -1) {
 				close_connect(be, DISCONNECT_REASON_CLIENT, 0);
 				return;
-			} else if (packet_length == -2) {//预防没收完的情况
+			} else if (packet_length == -2) {//预防没收完的情况.
 				break;
 			}
 
@@ -151,7 +151,7 @@ struct thread_io{
 				return;
 			}
 			if(sizeof(msg->buf) < head.len || head.len < 0) {
-				//回收
+				//回收.
 				global::ref.msg_recv_pool.free(msg);
 				return;
 			}
@@ -188,13 +188,13 @@ struct thread_io{
 				break;
 			}
 			if(msg->fds_len < 0){
-				// 世界广播
+				// 世界广播.
 				for(int i = 0; i < fds_len; ++i){
 					send_msg(fds[i], msg->id, msg->buf, msg->buf_len);
 				}
 			}
 			else{
-				// 针对特定fd广播
+				// 针对特定fd广播.
 				for(int i = 0; i < msg->fds_len; ++i){
 					send_msg(msg->fds[i], msg->id, msg->buf, msg->buf_len);
 				}
