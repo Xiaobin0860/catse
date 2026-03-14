@@ -1,0 +1,26 @@
+{
+  "enabled": true,
+  "name": "Sync Docs on Source Change",
+  "description": "When C++, C, header, Lua, or Makefile source files are edited, asks the agent to review the change and update relevant documentation in the README or docs folder to keep them in sync.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "*.cpp",
+      "*.c",
+      "*.h",
+      "*.hpp",
+      "*.lua",
+      "Makefile",
+      "logic",
+      "merge",
+      "common"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Sync Docs"
+  },
+  "workspaceFolderName": "engine",
+  "shortName": "sync-docs-on-change"
+}
