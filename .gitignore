@@ -2,3 +2,4 @@
 *.d
 /logic/logic
 /merge/merge
+/build/
