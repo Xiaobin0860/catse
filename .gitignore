@@ -4,3 +4,9 @@
 /merge/merge
 /build/
 /build-win32/
+.vs
+Release/
+Debug/
+*.vcxproj.user
+UpgradeLog.htm
+
