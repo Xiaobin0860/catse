@@ -102,9 +102,20 @@ struct global
 #endif
 	}
 	void init(){
-		
-		config_file_name = "script/Config.lua";
+		bool has_custom_config = (config_file_name && config_file_name[0]);
+		if(!has_custom_config){
+			config_file_name = "script/Config.lua";
+
+			const char *env_config = getenv("ENGINE_CONFIG_LUA");
+			if((!env_config || !env_config[0])){
+				env_config = getenv("CAT_CONFIG_LUA");
+			}
+			if(env_config && env_config[0]){
+				config_file_name = env_config;
+			}
+		}
 		logic_main_file_name = "script/Main.lua";
+		fprintf(stderr, "config file: %s\n", config_file_name);
 
 		// 读取lua配置文件
 		lua_config_reader *reader = &lua_config_reader::ref;

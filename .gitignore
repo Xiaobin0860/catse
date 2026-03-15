@@ -9,4 +9,5 @@ Release/
 Debug/
 *.vcxproj.user
 UpgradeLog.htm
-
+/bin/
+/lib/

@@ -733,6 +733,7 @@ static char***getVvs(int*n, int*m, char**vs, char*sheetNameBegin, char*sheetname
 				strReplace(cell, "\r", "");
 				strReplace(cell, "&amp;", "&");
 				strReplace(cell, "&gt;", ">");
+				strReplace(cell, "&quot;", "\"");
 				strReplace(cell, "&lt;", "<");
 				if(varType[j] == "table" || varType[j] == "tbstr"){
 					if(varType[j] == "tbstr"){

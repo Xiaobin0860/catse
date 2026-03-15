@@ -126,7 +126,7 @@ struct thread_log{
     
 	void init(){
 		lua_config_reader *reader = &lua_config_reader::ref;
-		if(!reader->open("script/Config.lua")){
+		if(!reader->open(global::ref.config_file_name)){
 			assert(0);
 			exit(0);
 		}

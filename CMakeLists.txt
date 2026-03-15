@@ -2,6 +2,21 @@ cmake_minimum_required(VERSION 3.10)
 project(GameServer C CXX)
 
 # ---------------------------------------------------------------------------
+# Global output directories
+# ---------------------------------------------------------------------------
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
+
+# Ensure multi-config generators (Visual Studio, Xcode) also use bin/lib.
+foreach(cfg IN ITEMS Debug Release RelWithDebInfo MinSizeRel)
+    string(TOUPPER ${cfg} CFG_UPPER)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${CFG_UPPER} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${CFG_UPPER} ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${CFG_UPPER} ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
+endforeach()
+
+# ---------------------------------------------------------------------------
 # Global compile options (Requirement 8.1, 8.2, 8.3, 8.4)
 # ---------------------------------------------------------------------------
 if(UNIX)

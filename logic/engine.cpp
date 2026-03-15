@@ -20,7 +20,30 @@ thread_inner thread_inner::ref;
 thread_admin thread_admin::ref;
 login_check login_check::ref;
 
-int main(){
+int main(int argc, char **argv){
+#ifdef __VERSION__
+	for(int i = 1; i < argc; ++i){
+		if(!strcmp(argv[i], "--config") && i + 1 < argc){
+			global::ref.config_file_name = argv[i + 1];
+			++i;
+			continue;
+		}
+		if(!memcmp(argv[i], "--config=", 9) && argv[i][9]){
+			global::ref.config_file_name = argv[i] + 9;
+		}
+	}
+#else
+	for(int i = 1; i < argc; ++i){
+		if(!strcmp(argv[i], "--config") && i + 1 < argc){
+			global::ref.config_file_name = argv[i + 1];
+			++i;
+			continue;
+		}
+		if(!memcmp(argv[i], "--config=", 9) && argv[i][9]){
+			global::ref.config_file_name = argv[i] + 9;
+		}
+	}
+#endif
 #ifdef __VERSION__
 	daemon(1,1);
 #else
