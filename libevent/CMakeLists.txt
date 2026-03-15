@@ -28,6 +28,7 @@ elseif(WIN32)
         evutil_rand.c
         listener.c
         log.c
+        signal.c
         strlcpy.c
     )
     set(LIBEVENT_PLATFORM_SOURCES
@@ -41,11 +42,11 @@ elseif(WIN32)
         ${LIBEVENT_PLATFORM_SOURCES}
     )
     target_include_directories(libevent_core PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/WIN32-Code
         ${CMAKE_CURRENT_SOURCE_DIR}/include
     )
     target_include_directories(libevent_core PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/WIN32-Code
         ${CMAKE_CURRENT_SOURCE_DIR}/compat
     )
 endif()

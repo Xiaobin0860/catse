@@ -13,7 +13,6 @@ target_include_directories(logic PRIVATE
     ${CMAKE_SOURCE_DIR}/common
     ${CMAKE_SOURCE_DIR}/luajit
     ${CMAKE_SOURCE_DIR}/mongo_c_driver
-    ${CMAKE_SOURCE_DIR}/libevent/include
 )
 
 # Link libraries (Requirement 5.3)
@@ -38,7 +37,6 @@ elseif(WIN32)
         INT32_MAX=0x7fffffff
         MONGO_STATIC_BUILD
         MONGO_USE_LONG_LONG_INT
-        snprintf=_snprintf
     )
 endif()
 

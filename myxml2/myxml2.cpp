@@ -1,4 +1,4 @@
-#include<stdlib.h>
+﻿#include<stdlib.h>
 #include<stdio.h>
 #include<string.h>
 #define assert(exp) (exp) || (printf("#exp=%s, __FILE__=%s, __LINE__=%d\n", #exp, __FILE__, __LINE__), getchar(), exit(0), 0)
@@ -979,7 +979,7 @@ static bool myStringCmp(char* str1, int st1, int ed1, char* str2, int st2, int e
 static int isFixPatternNameR(char* rname, char** patternNames, int patternNameLen) {
 	int i;
 	for(i = patternNameLen - 1; i > 0; i--) {
-		char* patternName = patternNames[i]; // 匹配后缀
+		char* patternName = patternNames[i]; // 匹配后缀.
 		int plen = strlen(patternName);
 		if(myStringCmp(rname, strlen(rname)-plen, strlen(rname)-1, patternName, 0, plen-1)) return i;
 	}
@@ -997,13 +997,13 @@ static void solvePattern(char* targetName, char** patternNames, int patternNameL
 	int ptype;
 	char* rname;
 	for(i = 1; i < m; i++) {
-		rname = rnames[i]; // 表头名字
+		rname = rnames[i]; // 表头名字.
 		ptype = isFixPatternNameR(rname, patternNames, patternNameLen);
 		if(ptype > 0){
 			targetIndexs[i] = -ptype;
 		}
 	}
-	if(targetName && strcmp(targetName, patternNames[0]) != 0) { //使用其它项目的内容
+	if(targetName && strcmp(targetName, patternNames[0]) != 0) { //使用其它项目的内容.
 		ptype = isFixPatternNameR(targetName, patternNames, patternNameLen);
 		if(strcmp(targetName, patternNames[ptype]) == 0) {
 			for(i = 1; i < m; i++) {
@@ -1019,7 +1019,7 @@ static void solvePattern(char* targetName, char** patternNames, int patternNameL
 	}
 }
 #undef myFwrite
-// argv说明：1-输入xlsx文件 2-输出lua文件 3-noshare 4-替换后缀
+// argv说明：1-输入xlsx文件 2-输出lua文件 3-noshare 4-替换后缀.
 int main(int argc, char**argv){
 	FILE*fileIn = fopen(argv[1], "rb");
 	if(!fileIn){
@@ -1054,8 +1054,8 @@ int main(int argc, char**argv){
 		assert(h.versionNeededToExtract == 0x14 || h.versionNeededToExtract == 0xa);
 		assert(h.generalPurposeBitFlag == 0x6 || h.generalPurposeBitFlag == 0x0);
 		assert(h.compressionMethod == 0x8 || h.compressionMethod == 0x0);
-		assert(h.lastModFileTime == 0x0);
-		assert(h.lastModFileDate == 0x21);
+		// assert(h.lastModFileTime == 0x0);
+		// assert(h.lastModFileDate == 0x21);
 		assert(h.compressionMethod || h.compressedSize == h.uncompressedSize);
 		if(sizeof(xmlFiles) / sizeof(*xmlFiles) <= xmlFilesLen){
 			assert(0);
@@ -1209,7 +1209,7 @@ int main(int argc, char**argv){
 		}
 	}
 	shareSheetsLen = j;
-	// 需要处理的后缀名列表
+	// 需要处理的后缀名列表.
 	char* patternNames[] = {"", "_bt2", "_tw", "_en", "_vi", "_kr", "_jp"};
 	int patternNameLen = sizeof(patternNames) / sizeof(*patternNames);
 	int outLen = 0;

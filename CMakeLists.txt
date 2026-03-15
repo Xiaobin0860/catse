@@ -29,6 +29,7 @@ if(UNIX)
 elseif(WIN32)
     set_target_properties(luajit PROPERTIES
         IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/luajit/lua51.lib"
+        INTERFACE_LINK_LIBRARIES "legacy_stdio_definitions;legacy_stdio_wide_specifiers"
     )
 endif()
 
