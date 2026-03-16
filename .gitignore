@@ -5,6 +5,7 @@
 /build/
 /build-win32/
 .vs
+.cache
 Release/
 Debug/
 *.vcxproj.user
