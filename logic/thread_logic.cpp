@@ -17,6 +17,28 @@ thread_loop thread_loop::ref;
 
 tm threadLogLocalTime;
 
+static void call_shutdown_hook(lua_State *pl, int errfunc, int log_msg)
+{
+	int top_old = lua_gettop(pl);
+	lua_getglobal(pl, "onEngineShutdown");
+	if(!lua_isfunction(pl, -1)){
+		lua_pop(pl, 1);
+		return;
+	}
+
+	if(lua_pcall(pl, 0, 0, errfunc)){
+		const char *p = lua_tostring(pl, -1);
+		DEBUG_PUTS(p);
+		thread_log::ref.write_c_log_logic(pl, log_msg, p);
+		lua_pop(pl, 1);
+	}
+
+	int top_new = lua_gettop(pl);
+	if(top_old != top_new){
+		thread_log::ref.write_c_log_err(pl, log_msg, "shutdown hook stack mismatch,%d,%d", top_old, top_new);
+	}
+}
+
 void thread_logic::init()
 {
 	
@@ -96,8 +118,18 @@ void thread_logic::run()
 {
 	time_t t;
 	tid = global::ref.get_thread_id();
+	bool shutdown_processed = false;
 	for(;;)
 	{
+		if(global::ref.is_shutdown_requested()){
+			if(!shutdown_processed){
+				shutdown_processed = true;
+				thread_log::ref.write_c_log_logic(pl, log_msg, "signal shutdown requested");
+				call_shutdown_hook(pl, errfunc, log_msg);
+				thread_log::ref.write_c_log_logic(pl, log_msg, "logic graceful shutdown done, exiting process");
+			}
+			exit(0);
+		}
 		sleep1;
 		t = time(0);
 		thread_loop::ref.run_times++;
@@ -242,7 +274,7 @@ void thread_logic::handle_admin()
 
 		int top_old = lua_gettop(pl);
 
-		// amin´¦Àí
+		// aminï¿½ï¿½ï¿½ï¿½
 		lua_getglobal(pl, "handlerAdmin");
 		lua_pushnumber(pl,fd);
 		lua_pushlstring(pl, msg->buf, msg->buf_len);
@@ -260,7 +292,7 @@ void thread_logic::handle_admin()
 		lua_pop(pl, 1);
 		global::ref.admin_recv_pool.free(msg);
 
-		// ·µ»Ø
+		// ï¿½ï¿½ï¿½ï¿½
 		if(p){
 			msg_admin * msgSend = global::ref.admin_send_pool.alloc();
 			if (!msgSend) {

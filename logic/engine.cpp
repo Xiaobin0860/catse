@@ -45,7 +45,7 @@ int main(int argc, char **argv){
 	}
 #endif
 #ifdef __VERSION__
-	daemon(1,1);
+	// daemon(1,1);
 #else
 	system("chcp 65001");
 #endif

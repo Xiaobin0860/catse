@@ -19,6 +19,8 @@
 
 struct global
 {
+	volatile sig_atomic_t shutdown_requested;
+	volatile sig_atomic_t shutdown_signal_no;
 	const char* config_file_name;
 	const char* logic_main_file_name;
 
@@ -101,15 +103,17 @@ struct global
 		return 1000000 * time.QuadPart / liQPF.QuadPart;
 #endif
 	}
+	bool is_shutdown_requested() const {
+		return shutdown_requested != 0;
+	}
 	void init(){
+		shutdown_requested = 0;
+		shutdown_signal_no = 0;
 		bool has_custom_config = (config_file_name && config_file_name[0]);
 		if(!has_custom_config){
 			config_file_name = "script/Config.lua";
 
 			const char *env_config = getenv("ENGINE_CONFIG_LUA");
-			if((!env_config || !env_config[0])){
-				env_config = getenv("CAT_CONFIG_LUA");
-			}
 			if(env_config && env_config[0]){
 				config_file_name = env_config;
 			}
@@ -189,8 +193,17 @@ struct global
 		// 初始化mongodb连接相关
 		mongo_env_sock_init();
 #ifdef __VERSION__
+		struct sigaction sa_shutdown;
+		memset(&sa_shutdown, 0, sizeof(sa_shutdown));
+		sa_shutdown.sa_handler = static_signal_shutdown;
+		sigemptyset(&sa_shutdown.sa_mask);
+		sigaction(SIGTERM, &sa_shutdown, 0);
+		sigaction(SIGINT, &sa_shutdown, 0);
+
 		struct sigaction sa;
+		memset(&sa, 0, sizeof(sa));
 		sa.sa_handler = SIG_IGN;
+		sigemptyset(&sa.sa_mask);
 		sigaction( SIGPIPE, &sa, 0 );
 #endif
 	}
@@ -255,6 +268,10 @@ struct global
 	static int static_traceback(lua_State *pl){
 		luaL_traceback(pl, pl, lua_tostring(pl, -1), 0);
 		return 1;
+	}
+	static void static_signal_shutdown(int sig){
+		ref.shutdown_signal_no = sig;
+		ref.shutdown_requested = 1;
 	}
 	static global ref;
 };
