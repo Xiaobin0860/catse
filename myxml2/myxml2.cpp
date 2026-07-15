@@ -804,6 +804,8 @@ static char ***getVvs(int *n, int *m, char **vs, char *sheetNameBegin,
         strReplace(cell, "&lt;", "<");
         if (varType[j] == "table") {
           strReplace(cell, "&#10;", "\n");
+        } else if (varType[j] == "string") {
+          strReplace(cell, "&#10;", "\n");
         }
         if (varType[j] == "table" || varType[j] == "tbstr") {
           if (varType[j] == "tbstr") {
