@@ -158,7 +158,18 @@ instead of custom OID generation).
 ### myxml2 (`myxml2/`)
 
 XML-to-Lua config converter used by the `catd/` data pipeline. Separate
-tool, not part of the running server.
+tool, not part of the running server. The deployed binary lives at
+`catd/tbls/myxml2` — rebuild and replace it after changing the source
+(`g++ -g -Wall -march=x86-64 -o catd/tbls/myxml2 catse/myxml2/myxml2.cpp`).
+
+On any table error it prints a locatable diagnostic to stderr —
+`[myxml2 配置错误] 文件:<xlsx> 标签页:<sheet>(xl/worksheets/sheetN.xml)` plus
+`原因:` (reason, including the offending ID / column / type / row) and
+`位置:` (source file:line in function) — then exits non-zero, so `check.sh`,
+`gen.sh` and `all.sh` stop instead of silently skipping a bad table. When stdin
+is a TTY (Windows double-click) it still waits for Enter. Table convention: row
+1 = field types, row 2 = field names, row 3 = Chinese comment (dropped), row 4+
+= data.
 
 ## Key Source Files
 

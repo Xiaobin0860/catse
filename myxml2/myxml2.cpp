@@ -1,10 +1,65 @@
-﻿#include <stdio.h>
+﻿#include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#include <io.h>
+#define myxml2Isatty _isatty
+#define myxml2Fileno _fileno
+#else
+#include <unistd.h>
+#define myxml2Isatty isatty
+#define myxml2Fileno fileno
+#endif
+// 当前正在处理的表上下文，只在报错时用于定位到具体的 Excel 文件与标签页。
+static const char *g_xlsxFile = "";
+static const char *g_sheetName = "";
+static const char *g_sheetPath = "";
+static char g_sheetPathBuf[64];
+static const char *myxml2BaseName(const char *path) {
+  const char *base = path;
+  for (; *path; ++path) {
+    if (*path == '/' || *path == '\\') {
+      base = path + 1;
+    }
+  }
+  return base;
+}
+// 统一的错误出口：打印[文件/标签页/原因/源码位置]到 stderr，并以退出码 1 结束，
+// 让 check.sh / gen.sh / all.sh 里的 `|| exit 1` 能真正拦下错误的表配置。
+static void myxml2Error(const char *file, int line, const char *func,
+                        const char *fmt, ...) {
+  fflush(stdout);
+  fprintf(stderr, "\n[myxml2 配置错误]");
+  if (g_xlsxFile[0]) {
+    fprintf(stderr, " 文件:%s", g_xlsxFile);
+  }
+  if (g_sheetName[0]) {
+    fprintf(stderr, " 标签页:%s", g_sheetName);
+  }
+  if (g_sheetPath[0]) {
+    fprintf(stderr, "(%s)", g_sheetPath);
+  }
+  fprintf(stderr, "\n  原因: ");
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  va_end(ap);
+  fprintf(stderr, "\n  位置: %s:%d in %s\n", myxml2BaseName(file), line, func);
+  if (myxml2Isatty(myxml2Fileno(stdin))) {
+    fprintf(stderr, "按回车键退出...");
+    fflush(stderr);
+    getchar();
+  }
+  exit(1);
+}
 #define assert(exp)                                                            \
-  (exp) || (printf("#exp=%s, __FILE__=%s, __LINE__=%d\n", #exp, __FILE__,      \
-                   __LINE__),                                                  \
-            getchar(), exit(0), 0)
+  (exp) ||                                                                     \
+      (myxml2Error(__FILE__, __LINE__, __func__, "内部断言失败: %s", #exp), 0)
+#define MYXML2_FAIL(...)                                                       \
+  (myxml2Error(__FILE__, __LINE__, __func__, __VA_ARGS__), 0)
+#define require(exp, ...)                                                      \
+  ((exp) || (myxml2Error(__FILE__, __LINE__, __func__, __VA_ARGS__), 0))
 struct tinfTree {
   short table[16];
   short trans[288];
@@ -118,7 +173,7 @@ static void tinfUncompress(void *dest, int *destLen, void *source,
     case 0: {
       int length = *(short *)d.source & 65535;
       if (length - (~*(short *)(d.source + 2) & 65535)) {
-        assert(0);
+        MYXML2_FAIL("xlsx 压缩数据校验失败，文件可能已损坏");
       }
       d.source += 4;
       memcpy(d.dest, d.source, length);
@@ -198,7 +253,7 @@ static void tinfUncompress(void *dest, int *destLen, void *source,
       tinfInflateBlockData(&d, &d.ltree, &d.dtree);
       break;
     default:
-      assert(0);
+      MYXML2_FAIL("xlsx 压缩数据块类型非法，文件可能已损坏");
     }
   } while (!bfinal);
   *destLen = d.dest - (char *)dest;
@@ -301,41 +356,43 @@ static void fileStr(char *out, int outCap, const char *filename, FILE *file,
       continue;
     }
     if (fseek(file, files[i].offset, SEEK_SET)) {
-      assert(0);
+      MYXML2_FAIL("读取 xlsx 内的 %s 失败(定位偏移)", filename);
     }
     if (outCap <= files[i].uncompressedSize) {
-      assert(0);
+      MYXML2_FAIL("xlsx 内的 %s 解压后超过 %d 字节上限，表太大", filename,
+                  outCap);
     }
     if (files[i].compressionMethod == 0x8) {
       static char bufCompress[1 << 22];
       if (sizeof(bufCompress) < files[i].compressedSize) {
-        assert(0);
+        MYXML2_FAIL("xlsx 内的 %s 压缩数据过大，超出内部缓存上限", filename);
       }
       if (1 - fread(bufCompress, files[i].compressedSize, 1, file)) {
-        assert(0);
+        MYXML2_FAIL("读取 xlsx 内的 %s 失败，文件可能已损坏", filename);
       }
       int bufUncompressLen = 0;
       tinfUncompress(out, &bufUncompressLen, bufCompress,
                      files[i].compressedSize);
       if (bufUncompressLen - files[i].uncompressedSize) {
-        assert(0);
+        MYXML2_FAIL("xlsx 内的 %s 解压长度异常，文件可能已损坏", filename);
       }
     } else if (files[i].compressionMethod == 0x0) {
       if (1 - fread(out, files[i].uncompressedSize, 1, file)) {
-        assert(0);
+        MYXML2_FAIL("读取 xlsx 内的 %s 失败，文件可能已损坏", filename);
       }
     } else {
-      assert(0);
+      MYXML2_FAIL("xlsx 内的 %s 使用了不支持的压缩方式 %d", filename,
+                  files[i].compressionMethod);
     }
     out[files[i].uncompressedSize] = 0;
     return;
   }
-  assert(0);
+  MYXML2_FAIL("xlsx 内缺少 %s，文件不是标准的 xlsx 或已损坏", filename);
 }
 static struct dot *getXml(char *begin) {
 #define checkEnd                                                               \
   if (end <= begin) {                                                          \
-    assert(0);                                                                 \
+    MYXML2_FAIL("表格 XML 内容意外结束，xml 结构异常");                        \
   }
   static const char *pname[] = {"si", "t", "sheet", "c", "v"};
   static const char *pk[] = {"name", "r", "t"};
@@ -387,7 +444,8 @@ static struct dot *getXml(char *begin) {
     struct dot *back = 0;
     if (pp) {
       if (sizeof(vd) / sizeof(*vd) < vdLen + 2) {
-        assert(0);
+        MYXML2_FAIL("表格 XML 节点过多，超出上限 %d",
+                    (int)(sizeof(vd) / sizeof(*vd)));
       }
       back = vd + vdLen++;
       memset(back, 0, sizeof(*back));
@@ -415,10 +473,11 @@ static struct dot *getXml(char *begin) {
         *begin = t;
         if (ppp) {
           if (sizeof(back->vkv) / sizeof(*back->vkv) <= vkvLen) {
-            assert(0);
+            MYXML2_FAIL("表格 XML 标签的属性过多");
           }
           if (sizeof(bufVkv) / sizeof(*bufVkv) <= bufVkvLen) {
-            assert(0);
+            MYXML2_FAIL("表格 XML 属性过多，超出上限 %d",
+                        (int)(sizeof(bufVkv) / sizeof(*bufVkv)));
           }
           back->vkv[vkvLen++] = bufVkv + bufVkvLen++;
           back->vkv[vkvLen - 1]->k = ppp;
@@ -456,7 +515,7 @@ static struct dot *getXml(char *begin) {
         back->text = "";
       }
     } else {
-      assert(0);
+      MYXML2_FAIL("表格 XML 标签结尾非法，xml 结构异常");
     }
   }
 #undef checkEnd
@@ -484,7 +543,7 @@ static char *getStr(const char *str) {
     }
   }
   if (sizeof(set) / sizeof(*set) <= setlen) {
-    assert(0);
+    MYXML2_FAIL("字符串种类超过上限 %d 个", (int)(sizeof(set) / sizeof(*set)));
   }
   memmove(set + a + 1, set + a, sizeof(*set) * (setlen - a));
   ++setlen;
@@ -492,7 +551,7 @@ static char *getStr(const char *str) {
   static int buflen;
   int len = strlen(str);
   if (sizeof(buf) <= buflen + len) {
-    assert(0);
+    MYXML2_FAIL("表格字符串总长度超过内部缓存上限 %d 字节", (int)sizeof(buf));
   }
   set[a] = buf + buflen;
   memcpy(buf + buflen, str, len);
@@ -506,7 +565,7 @@ static void getWorkbook(char **out, int outCap, char *workbookBegin) {
   for (i = 0; vd[i].name; ++i) {
     if (vd[i].name == "sheet") {
       if (outCap <= outLen + 1) {
-        assert(0);
+        MYXML2_FAIL("标签页数量超过上限 %d", outCap - 1);
       }
       out[outLen++] = getStr(vd[i].vkv[0]->v);
     }
@@ -522,7 +581,7 @@ static void getSharedStrings(char **out, int outCap, char *sharedStringsBegin) {
   for (i = 0; vd[i].name; ++i) {
     if (vd[i].name == "si") {
       if (outCap <= outlen) {
-        assert(0);
+        MYXML2_FAIL("共享字符串数量超过上限 %d", outCap);
       }
       if (outlen) {
         buf[buflen] = 0;
@@ -533,7 +592,7 @@ static void getSharedStrings(char **out, int outCap, char *sharedStringsBegin) {
     } else if (vd[i].name == "t") {
       int textlen = strlen(vd[i].text);
       if (sizeof(buf) <= buflen + textlen) {
-        assert(0);
+        MYXML2_FAIL("单个字符串长度超过 %d 字节", (int)sizeof(buf));
       }
       memcpy(buf + buflen, vd[i].text, textlen);
       buflen += textlen;
@@ -549,7 +608,7 @@ static void strReplace(char *a, const char *b, const char *c) {
   int blen = strlen(b);
   int clen = strlen(c);
   if (blen < clen) {
-    assert(0);
+    MYXML2_FAIL("内部错误: 替换串比原串长");
   }
   char *pp = a;
   char *p;
@@ -577,16 +636,12 @@ static void removeSpace(char *a) {
     } else if (*a == '[' && *(a + 1) == '[') {
       ++cntKuo;
       if (1 < cntKuo) {
-        FILE *file = fopen("debug.txt", "wb");
-        fwrite(aOld, 1, strlen(aOld), file);
-        assert(0);
+        MYXML2_FAIL("table 字段里出现嵌套的[[，Lua 表格式错误: %s", aOld);
       }
     } else if (*a == ']' && *(a + 1) == ']') {
       --cntKuo;
       if (cntKuo < 0) {
-        FILE *file = fopen("debug.txt", "wb");
-        fwrite(aOld, 1, strlen(aOld), file);
-        assert(0);
+        MYXML2_FAIL("table 字段里出现多余的]]，Lua 表格式错误: %s", aOld);
       }
     }
     if (cntYin || cntKuo || *a - 10 && *a - 13 && *a - 32) {
@@ -628,22 +683,22 @@ static void getStrAddQuote(char *out, int outCap, char *a) {
           if (!cntKuo) {
             int len = start - last;
             if (outCap < outLen + len) {
-              assert(0);
+              MYXML2_FAIL("单元格内容过长，超出 %d 字节转换缓存", outCap);
             }
             memcpy(out + outLen, last, len);
             outLen += len;
             if (outCap <= outLen) {
-              assert(0);
+              MYXML2_FAIL("单元格内容过长，超出 %d 字节转换缓存", outCap);
             }
             out[outLen++] = '\"';
             len = a - start;
             if (outCap < outLen + len) {
-              assert(0);
+              MYXML2_FAIL("单元格内容过长，超出 %d 字节转换缓存", outCap);
             }
             memcpy(out + outLen, start, len);
             outLen += len;
             if (outCap <= outLen) {
-              assert(0);
+              MYXML2_FAIL("单元格内容过长，超出 %d 字节转换缓存", outCap);
             }
             out[outLen++] = '\"';
             last = a;
@@ -671,13 +726,13 @@ static void getStrAddQuote(char *out, int outCap, char *a) {
   if (aOld < last) {
     int len = a - last;
     if (outCap < outLen + len) {
-      assert(0);
+      MYXML2_FAIL("单元格内容过长，超出 %d 字节转换缓存", outCap);
     }
     memcpy(out + outLen, last, len);
     outLen += len;
   }
   if (outCap <= outLen) {
-    assert(0);
+    MYXML2_FAIL("单元格内容过长，超出 %d 字节转换缓存", outCap);
   }
   out[outLen] = 0;
 }
@@ -706,12 +761,15 @@ static char ***getVvs(int *n, int *m, char **vs, char *sheetNameBegin,
       --col;
       int row = atoi(p);
       if (row < rowOld) {
-        assert(0);
+        MYXML2_FAIL("单元格[%s]所在行 %d 小于上一行 %d，行号必须递增(检查是否有"
+                    "乱序或隐藏的行)",
+                    vd[i].vkv[0]->v, row, rowOld);
       }
       if (rowOld < row) {
         rowOld = row;
         if (sizeof(vvs) / sizeof(*vvs) <= *n) {
-          assert(0);
+          MYXML2_FAIL("标签页行数超过上限 %d 行",
+                      (int)(sizeof(vvs) / sizeof(*vvs)));
         }
         ++*n;
       }
@@ -733,14 +791,17 @@ static char ***getVvs(int *n, int *m, char **vs, char *sheetNameBegin,
       }
       if (*m <= col) {
         if (sizeof(*vvs) / sizeof(**vvs) < col + 1) {
-          assert(0);
+          MYXML2_FAIL("标签页列数超过上限 %d 列",
+                      (int)(sizeof(*vvs) / sizeof(**vvs)));
         }
         *m = col + 1;
       }
     }
   }
   if (*n < 2) {
-    assert(0);
+    MYXML2_FAIL("有效行数只有 %d 行，至少需要 2 行(第 1 行字段类型、第 2 行字段"
+                "名)；空标签页请从 Excel 中删除",
+                *n);
   }
   char f[sizeof(*vvs) / sizeof(**vvs)];
   int len = 1;
@@ -823,7 +884,8 @@ static char ***getVvs(int *n, int *m, char **vs, char *sheetNameBegin,
   }
   char *vc[sizeof(vvs) / sizeof(*vvs)];
   if (sizeof(vc) / sizeof(*vc) < *n - 2) {
-    assert(0);
+    MYXML2_FAIL("标签页数据行数超过上限 %d 行",
+                (int)(sizeof(vc) / sizeof(*vc)));
   }
   for (i = 2; i < *n; ++i) {
     vc[i - 2] = vvs[i][0];
@@ -831,13 +893,11 @@ static char ***getVvs(int *n, int *m, char **vs, char *sheetNameBegin,
   qsort(vc, *n - 2, sizeof(*vc), cmp);
   for (i = 1; i < *n - 2; ++i) {
     if (vc[i - 1] == vc[i]) {
-      printf("%s表的%s标签页中第一列存在重复的ID[%s]\n", filename, sheetname,
-             vc[i]);
-      assert(0);
+      MYXML2_FAIL("第一列存在重复的ID[%s]", vc[i]);
     }
   }
   if (sizeof(vc) / sizeof(*vc) < *m - 1) {
-    assert(0);
+    MYXML2_FAIL("标签页字段数超过上限 %d 列", (int)(sizeof(vc) / sizeof(*vc)));
   }
   for (i = 1; i < *m; ++i) {
     vc[i - 1] = vvs[1][i];
@@ -845,22 +905,21 @@ static char ***getVvs(int *n, int *m, char **vs, char *sheetNameBegin,
   qsort(vc, *m - 1, sizeof(*vc), cmp);
   for (i = 1; i < *m - 1; ++i) {
     if (vc[i - 1] == vc[i]) {
-      printf("%s表的%s标签页中存在重复的列[%s]\n", filename, sheetname, vc[i]);
-      assert(0);
+      MYXML2_FAIL("存在重复的字段(列)名[%s]", vc[i]);
     }
   }
   static char vvsMem[1 << 22];
   static int vvsMemLen;
   int siz = *n * sizeof(char *);
   if (sizeof(vvsMem) < vvsMemLen + siz) {
-    assert(0);
+    MYXML2_FAIL("标签页数据过大，超出 %d 字节内部缓存", (int)sizeof(vvsMem));
   }
   char ***vvsNew = (char ***)(vvsMem + vvsMemLen);
   vvsMemLen += siz;
   for (i = 0; i < *n; ++i) {
     int siz = *m * sizeof(char *);
     if (sizeof(vvsMem) < vvsMemLen + siz) {
-      assert(0);
+      MYXML2_FAIL("标签页数据过大，超出 %d 字节内部缓存", (int)sizeof(vvsMem));
     }
     vvsNew[i] = (char **)(vvsMem + vvsMemLen);
     vvsMemLen += siz;
@@ -870,10 +929,10 @@ static char ***getVvs(int *n, int *m, char **vs, char *sheetNameBegin,
 }
 static int writeInt(char *out, int cap, int a) {
   if (cap < 16) {
-    assert(0);
+    MYXML2_FAIL("内部错误: writeInt 的 %d 字节缓存不足", cap);
   }
   if (a < 0) {
-    assert(0);
+    MYXML2_FAIL("内部错误: writeInt 收到负数 %d", a);
   }
   int outLen = 0;
   do {
@@ -892,7 +951,7 @@ static int writeInt(char *out, int cap, int a) {
 }
 #define myFwrite(buf, bufLen)                                                  \
   if (outCap < outLen + bufLen) {                                              \
-    assert(0);                                                                 \
+    MYXML2_FAIL("生成内容超出了 %d 字节输出缓存，请拆分这个表", outCap);       \
   }                                                                            \
   memcpy(out + outLen, buf, bufLen);                                           \
   outLen += bufLen
@@ -944,7 +1003,7 @@ static int fillRow(char *out, int outCap, char **varType, char **name,
       myFwrite("=", sizeof("=") - 1);
       if (varType[j] == "number") {
         if (outCap < outLen + 64) {
-          assert(0);
+          MYXML2_FAIL("数字字段输出超出 %d 字节缓存，表太大", outCap);
         }
         double d = atof(row[j]);
         d = d ? d : strtol(row[j], 0, 0);
@@ -980,10 +1039,9 @@ static int fillRow(char *out, int outCap, char **varType, char **name,
           outLen += fillTb(out + outLen, outCap - outLen, row[j]);
         }
       } else {
-        puts(sheetname);
-        puts(varType[j]);
-        puts("number plain string table");
-        assert(0);
+        MYXML2_FAIL("字段[%s]的类型[%s]非法，只能是 number/plain/string/"
+                    "table/tbstr",
+                    tname, varType[j]);
       }
     }
   }
@@ -1121,10 +1179,10 @@ static void solvePattern(const char *targetName,
 #undef myFwrite
 // argv说明：1-输入xlsx文件 2-输出lua文件 3-noshare 4-替换后缀.
 int main(int argc, char **argv) {
+  g_xlsxFile = argv[1] ? argv[1] : "";
   FILE *fileIn = fopen(argv[1], "rb");
   if (!fileIn) {
-    printf("文件名错误，找不到文件[%s]\n", argv[1]);
-    assert(0);
+    MYXML2_FAIL("找不到输入文件[%s]，请检查路径是否正确", argv[1]);
   }
   char noshare = argv[3] && !strcmp(argv[3], "noshare");
   struct tri xmlFiles[512];
@@ -1152,25 +1210,32 @@ int main(int argc, char **argv) {
     if (h.localFileHeaderSignature - 0x04034b50) {
       break;
     }
-    assert(h.versionNeededToExtract == 0x14 || h.versionNeededToExtract == 0xa);
-    assert(h.generalPurposeBitFlag == 0x6 || h.generalPurposeBitFlag == 0x0);
-    assert(h.compressionMethod == 0x8 || h.compressionMethod == 0x0);
+    require(h.versionNeededToExtract == 0x14 || h.versionNeededToExtract == 0xa,
+            "不是有效的 xlsx(zip 版本 0x%x)，文件可能已损坏",
+            h.versionNeededToExtract);
+    require(h.generalPurposeBitFlag == 0x6 || h.generalPurposeBitFlag == 0x0,
+            "不是有效的 xlsx(zip 标志 0x%x)，请另存为未加密的 xlsx",
+            h.generalPurposeBitFlag);
+    require(h.compressionMethod == 0x8 || h.compressionMethod == 0x0,
+            "不是有效的 xlsx(压缩方式 0x%x)", h.compressionMethod);
     // assert(h.lastModFileTime == 0x0);
     // assert(h.lastModFileDate == 0x21);
-    assert(h.compressionMethod || h.compressedSize == h.uncompressedSize);
+    require(h.compressionMethod || h.compressedSize == h.uncompressedSize,
+            "不是有效的 xlsx(条目大小不一致)，文件可能已损坏");
     if (sizeof(xmlFiles) / sizeof(*xmlFiles) <= xmlFilesLen) {
-      assert(0);
+      MYXML2_FAIL("xlsx 内的文件条目过多，超出上限 %d",
+                  (int)(sizeof(xmlFiles) / sizeof(*xmlFiles)));
     }
     struct tri *t = xmlFiles + xmlFilesLen;
     if (sizeof(t->filename) <= h.fileNameLength) {
-      assert(0);
+      MYXML2_FAIL("xlsx 内的文件名过长(%d 字节)", h.fileNameLength);
     }
     if (fread(t->filename, 1, h.fileNameLength, fileIn) - h.fileNameLength) {
-      assert(0);
+      MYXML2_FAIL("读取 xlsx 目录失败，文件可能已损坏");
     }
     t->filename[h.fileNameLength] = 0;
     if (fseek(fileIn, h.extraFieldLength, SEEK_CUR)) {
-      assert(0);
+      MYXML2_FAIL("读取 xlsx 目录失败，文件可能已损坏");
     }
     if (4 <= h.fileNameLength &&
         !memcmp(t->filename + h.fileNameLength - 4, ".xml", 4)) {
@@ -1190,7 +1255,7 @@ int main(int argc, char **argv) {
       }
     }
     if (fseek(fileIn, h.compressedSize, SEEK_CUR)) {
-      assert(0);
+      MYXML2_FAIL("读取 xlsx 内容失败，文件可能已损坏");
     }
   }
   static char out[1 << 26];
@@ -1217,9 +1282,14 @@ int main(int argc, char **argv) {
     int bufLen = sizeof("xl/worksheets/sheet") - 1;
     bufLen += writeInt(buf + bufLen, sizeof(buf) - bufLen, i + 1);
     memcpy(buf + bufLen, ".xml", sizeof(".xml"));
+    g_xlsxFile = argv[1];
+    g_sheetName = workbook[i];
+    memcpy(g_sheetPathBuf, buf, bufLen + sizeof(".xml"));
+    g_sheetPath = g_sheetPathBuf;
     fileStr(out, sizeof(out), buf, fileIn, xmlFiles, xmlFilesLen);
     int n, m;
     char ***vvs = getVvs(&n, &m, sharedStrings, out, workbook[i], argv[1]);
+    g_sheetPath = "";
     svvs[i] = vvs;
     nn[i] = n;
     mm[i] = m;
@@ -1245,7 +1315,7 @@ int main(int argc, char **argv) {
   }                                                                            \
   if (b < a) {                                                                 \
     if (sizeof(share) / sizeof(*share) <= shareLen) {                          \
-      assert(0);                                                               \
+      MYXML2_FAIL("共享(share)缓存不足，标签页/行数过多");                     \
     }                                                                          \
     memmove(share + a + 1, share + a, sizeof(*share) * (shareLen - a));        \
     ++shareLen;                                                                \
@@ -1318,7 +1388,7 @@ int main(int argc, char **argv) {
   int outLen = 0;
 #define myFwrite(buf, bufLen)                                                  \
   if (sizeof(out) < outLen + bufLen) {                                         \
-    assert(0);                                                                 \
+    MYXML2_FAIL("生成内容超出输出缓存上限，请拆分这个表");                     \
   }                                                                            \
   memcpy(out + outLen, buf, bufLen);                                           \
   outLen += bufLen
@@ -1374,6 +1444,7 @@ int main(int argc, char **argv) {
       if (hasChinese(workbook[i])) {
         continue;
       }
+      g_sheetName = workbook[i];
       char ***vvs = svvs[i];
       int n = nn[i];
       int m = mm[i];
@@ -1428,8 +1499,7 @@ int main(int argc, char **argv) {
     }
     FILE *fileOut = fopen(argv[2], "wb");
     if (!fileOut) {
-      printf("路径错误,找不到[%s]\n", argv[2]);
-      assert(0);
+      MYXML2_FAIL("无法写入输出文件[%s]，请检查路径与权限", argv[2]);
     }
     fwrite(out, 1, outLen, fileOut);
   } else {
@@ -1437,6 +1507,7 @@ int main(int argc, char **argv) {
       if (hasChinese(workbook[i])) {
         continue;
       }
+      g_sheetName = workbook[i];
       char ***vvs = svvs[i];
       int n = nn[i];
       int m = mm[i];
@@ -1455,8 +1526,7 @@ int main(int argc, char **argv) {
 
     FILE *fileOut = fopen("./check.txt", "ab");
     if (!fileOut) {
-      printf("路径错误,找不到[%s]\n", argv[2]);
-      assert(0);
+      MYXML2_FAIL("无法写入输出文件[./check.txt]，请检查当前目录权限");
     }
     fwrite(out, 1, outLen, fileOut);
   }
