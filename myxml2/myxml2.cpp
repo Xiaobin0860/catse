@@ -987,6 +987,11 @@ static int fillRow(char *out, int outCap, char **varType, char **name,
       j = targetIndexs[tj];
     else
       j = tj;
+    // 语言列的单元格为空 = 该字段没填译文, 回落基列的原文值.
+    // 不回落的话, 空格会把基列的值顶替成空串/数字 0 (例如 buyID=0、价格=0).
+    if (j > 0 && j != tj && !row[j][0]) {
+      j = tj;
+    }
     if (j > 0) {
       if (0 < cnt) {
         myFwrite(",", sizeof(",") - 1);
